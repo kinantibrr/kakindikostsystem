@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kakindi Kost - Sistem Informasi Akuntansi</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:Inter,Arial,sans-serif;background:#F7F1EE;color:#3F302B}
+button,input,select,textarea{font:inherit}
+button{cursor:pointer;border:0}
+.app{display:flex;min-height:100vh}
+.sidebar{width:245px;background:#5C3A32;color:white;padding:22px 15px;position:fixed;left:0;top:0;bottom:0}
+.logo{font-size:22px;font-weight:800;padding:10px 12px 25px}
+.logo span{color:#E8A58F}
+.nav button{display:block;width:100%;text-align:left;background:transparent;color:#cbd5e1;padding:12px 14px;border-radius:9px;margin:4px 0}
+.nav button:hover,.nav button.active{background:#A9573F;color:white}
+.main{margin-left:245px;width:calc(100% - 245px);padding:28px}
+.page{display:none}.page.active{display:block}
+.topbar{display:flex;border-bottom:2px solid #D9B5A7;padding-bottom:15px;justify-content:space-between;align-items:center;margin-bottom:25px}
+h1{font-size:27px}.muted{color:#7C6861;font-size:14px}
+.btn{padding:10px 15px;border-radius:8px;background:#B65F47;color:#fff;font-weight:600}
+.btn.secondary{background:#EADDD7;color:#5C3A32}.btn.danger{background:#9F3F32}
+.cards{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:22px}
+.card{background:white;border-radius:12px;padding:20px;box-shadow:0 3px 14px rgba(92,58,50,.08)}
+.card .label{color:#7C6861;font-size:13px;margin-bottom:9px}.card .value{font-size:25px;font-weight:800}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+.table-card{background:#fff;border-radius:12px;padding:20px;box-shadow:0 3px 14px rgba(92,58,50,.08)}
+.table-title{font-weight:700;margin-bottom:15px;font-size:17px}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th,td{padding:12px 9px;border-bottom:1px solid #EADDD7;text-align:left}
+th{color:#7C6861;font-size:12px;text-transform:uppercase}
+.badge{padding:5px 9px;border-radius:999px;font-size:12px;font-weight:600;display:inline-block}
+.badge.green{background:#E2F0E7;color:#356B4B}.badge.red{background:#F6DEDA;color:#8B3E35}.badge.yellow{background:#F7E9D1;color:#8A5A2B}
+.toolbar{display:flex;justify-content:space-between;gap:10px;margin-bottom:15px}
+.search{padding:10px 12px;border:1px solid #D8C5BD;border-radius:8px;width:260px}
+.modal{position:fixed;inset:0;background:#0008;display:none;align-items:center;justify-content:center;padding:20px;z-index:10}
+.modal.show{display:flex}
+.modal-box{background:white;width:min(560px,100%);max-height:90vh;overflow:auto;border-radius:12px;padding:24px}
+.modal-head{display:flex;justify-content:space-between;margin-bottom:20px}
+.close{background:none;font-size:24px;color:#7C6861}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.field{display:flex;flex-direction:column;gap:6px}.field.full{grid-column:1/-1}
+.field label{font-size:13px;font-weight:600}
+.field input,.field select,.field textarea{padding:10px;border:1px solid #D8C5BD;border-radius:7px}
+.form-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:20px}
+.empty{text-align:center;color:#94a3b8;padding:25px}
+.notice{padding:12px 14px;background:#F8E8E2;color:#A9573F;border-radius:8px;margin-bottom:15px;font-size:13px}
+@media(max-width:900px){.cards{grid-template-columns:1fr 1fr}.sidebar{width:210px}.main{margin-left:210px;width:calc(100% - 210px)}.grid{grid-template-columns:1fr}}
+@media(max-width:650px){.sidebar{position:static;width:100%;height:auto}.app{display:block}.main{margin-left:0;width:100%;padding:18px}.cards{grid-template-columns:1fr}.form-grid{grid-template-columns:1fr}.field.full{grid-column:auto}.nav{display:flex;overflow:auto}.nav button{white-space:nowrap}.topbar{align-items:flex-start;gap:10px}}
+</style>
+</head>
+<body>
+<div class="app">
+<aside class="sidebar">
+  <div class="logo">Kakindi <span>Kost</span></div>
+  <nav class="nav">
+    <button class="active" data-page="dashboard">Dashboard</button>
+    <button data-page="kamar">Data Kamar</button>
+    <button data-page="penghuni">Data Penghuni</button>
+    <button data-page="sewa">Data Sewa</button>
+    <button data-page="pembayaran">Penerimaan Kas</button>
+    <button data-page="jurnal">Jurnal Penerimaan</button>
+  </nav>
+</aside>
+
+<main class="main">
+<section id="dashboard" class="page active">
+  <div class="topbar"><div><h1>Dashboard</h1><p class="muted">Sistem Informasi Akuntansi Penyewaan Kos</p></div></div>
+  <div class="cards">
+    <div class="card"><div class="label">Total Kamar</div><div class="value" id="dKamar">0</div></div>
+    <div class="card"><div class="label">Kamar Terisi</div><div class="value" id="dTerisi">0</div></div>
+    <div class="card"><div class="label">Kamar Kosong</div><div class="value" id="dKosong">0</div></div>
+    <div class="card"><div class="label">Tagihan Sewa Bulan Ini</div><div class="value" id="dKas">Rp0</div></div>
+  </div>
+  <div class="grid">
+    <div class="table-card"><div class="table-title">Pembayaran Terbaru</div><div id="recentPayments"></div></div>
+    <div class="table-card"><div class="table-title">Status Kamar</div><div id="roomStatus"></div></div>
+  </div>
+</section>
+
+<section id="kamar" class="page">
+  <div class="topbar"><div><h1>Data Kamar</h1><p class="muted">Kelola data kamar kos</p></div><button class="btn" onclick="openModal('kamar')">+ Tambah Kamar</button></div>
+  <div class="table-card"><div class="toolbar"><input class="search" id="searchKamar" placeholder="Cari kamar..." oninput="renderKamar()"></div><div id="tableKamar"></div></div>
+</section>
+
+<section id="penghuni" class="page">
+  <div class="topbar"><div><h1>Data Penghuni</h1><p class="muted">Kelola data penghuni</p></div><button class="btn" onclick="openModal('penghuni')">+ Tambah Penghuni</button></div>
+  <div class="table-card"><div class="toolbar"><input class="search" id="searchPenghuni" placeholder="Cari nama..." oninput="renderPenghuni()"></div><div id="tablePenghuni"></div></div>
+</section>
+
+<section id="sewa" class="page">
+  <div class="topbar"><div><h1>Data Sewa</h1><p class="muted">Kelola hubungan penghuni dan kamar</p></div><button class="btn" onclick="openModal('sewa')">+ Tambah Sewa</button></div>
+  <div class="table-card"><div id="tableSewa"></div></div>
+</section>
+
+<section id="pembayaran" class="page">
+  <div class="topbar"><div><h1>Penerimaan Kas</h1><p class="muted">Pencatatan pembayaran sewa kamar</p></div><span class="muted">Penerimaan kas terbentuk otomatis dari data sewa</span></div>
+  <div class="table-card"><div id="tablePembayaran"></div></div>
+</section>
+
+<section id="jurnal" class="page">
+  <div class="topbar"><div><h1>Jurnal Penerimaan Kas</h1><p class="muted">Jurnal otomatis dari transaksi pembayaran</p></div></div>
+  <div class="notice">Setiap pembayaran sewa akan dicatat sebagai <b>Debit Kas/Bank</b> dan <b>Kredit Pendapatan Sewa</b>.</div>
+  <div class="table-card"><div id="tableJurnal"></div></div>
+</section>
+</main>
+</div>
+
+<div class="modal" id="modal">
+<div class="modal-box">
+  <div class="modal-head"><h2 id="modalTitle">Tambah Data</h2><button class="close" onclick="closeModal()">×</button></div>
+  <form id="modalForm"></form>
+</div>
+</div>
+
+<script>
+const SUPABASE_URL = "https://xbegbujwjrperqpjfwkm.supabase.co";
+const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_i20veH4PQJDHq67kmMqbmg_hJcQyu36";
+const db = supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
+
+let state = {kamar:[], penghuni:[], sewa:[], pembayaran:[], jurnal:[]};
+
+const rupiah = n => new Intl.NumberFormat("id-ID",{style:"currency",currency:"IDR",maximumFractionDigits:0}).format(Number(n)||0);
+const esc = s => String(s ?? "").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m]));
+
+document.querySelectorAll(".nav button").forEach(btn=>{
+  btn.addEventListener("click",()=>{
+    document.querySelectorAll(".nav button").forEach(x=>x.classList.remove("active"));
+    document.querySelectorAll(".page").forEach(x=>x.classList.remove("active"));
+    btn.classList.add("active");
+    document.getElementById(btn.dataset.page).classList.add("active");
+    renderAll();
+  });
+});
+
+async function loadAll(){
+  try{
+    const results = await Promise.all([
+      db.from("kamar").select("*").order("nomor_kamar"),
+      db.from("penghuni").select("*").order("nama"),
+      db.from("sewa").select("*, penghuni(nama), kamar(nomor_kamar)").order("id",{ascending:false}),
+      db.from("pembayaran").select("*, sewa(penghuni(nama),kamar(nomor_kamar))").order("tanggal_bayar",{ascending:false}),
+      db.from("jurnal_penerimaan_kas").select("*").order("tanggal",{ascending:false})
+    ]);
+    const names=["kamar","penghuni","sewa","pembayaran","jurnal"];
+    results.forEach((r,i)=>{ if(r.error) console.warn(names[i],r.error.message); else state[names[i]]=r.data||[]; });
+    renderAll();
+  }catch(e){ console.error(e); alert("Gagal memuat database. Pastikan tabel Supabase dan RLS sudah dibuat."); }
+}
+
+function renderAll(){
+  renderDashboard(); renderKamar(); renderPenghuni(); renderSewa(); renderPembayaran(); renderJurnal();
+}
+
+function renderDashboard(){
+  const total=state.kamar.length, terisi=state.kamar.filter(x=>String(x.status).toLowerCase()==="terisi").length;
+  const now=new Date(), month=now.getMonth()+1, year=now.getFullYear();
+  const kas=state.pembayaran.filter(x=>{const d=new Date(x.tanggal_bayar);return d.getMonth()+1===month&&d.getFullYear()===year}).reduce((a,b)=>a+Number(b.jumlah||0),0);
+  dKamar.textContent=total; dTerisi.textContent=terisi; dKosong.textContent=total-terisi; dKas.textContent=rupiah(kas);
+  recentPayments.innerHTML=state.pembayaran.slice(0,5).map(x=>`<div style="padding:10px 0;border-bottom:1px solid #eee"><b>${esc(x.sewa?.penghuni?.nama||"-")}</b><br><span class="muted">${esc(x.tanggal_bayar)} · ${rupiah(x.jumlah)}</span></div>`).join("")||'<div class="empty">Belum ada pembayaran</div>';
+  roomStatus.innerHTML=state.kamar.slice(0,8).map(x=>`<div style="display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px solid #eee"><b>Kamar ${esc(x.nomor_kamar)}</b><span class="badge ${String(x.status).toLowerCase()==="terisi"?"green":"yellow"}">${esc(x.status)}</span></div>`).join("")||'<div class="empty">Belum ada kamar</div>';
+}
+
+function renderKamar(){
+  const q=(document.getElementById("searchKamar")?.value||"").toLowerCase();
+  const rows=state.kamar.filter(x=>String(x.nomor_kamar).toLowerCase().includes(q));
+  tableKamar.innerHTML=`<table><thead><tr><th>No</th><th>Nomor</th><th>Tipe</th><th>Harga Sewa</th><th>Status</th><th>Aksi</th></tr></thead><tbody>${rows.map((x,i)=>`<tr><td>${i+1}</td><td><b>${esc(x.nomor_kamar)}</b></td><td>${esc(x.tipe_kamar)}</td><td>${rupiah(x.harga_sewa)}</td><td><span class="badge ${String(x.status).toLowerCase()==="terisi"?"green":"yellow"}">${esc(x.status)}</span></td><td><button class="btn secondary" onclick="editData('kamar',${x.id})">Edit</button> <button class="btn danger" onclick="deleteData('kamar',${x.id})">Hapus</button></td></tr>`).join("")||'<tr><td colspan="6" class="empty">Belum ada data</td></tr>'}</tbody></table>`;
+}
+
+function renderPenghuni(){
+  const q=(document.getElementById("searchPenghuni")?.value||"").toLowerCase();
+  const rows=state.penghuni.filter(x=>String(x.nama).toLowerCase().includes(q));
+  tablePenghuni.innerHTML=`<table><thead><tr><th>No</th><th>Nama</th><th>No. HP</th><th>Tanggal Masuk</th><th>Status</th><th>Aksi</th></tr></thead><tbody>${rows.map((x,i)=>`<tr><td>${i+1}</td><td><b>${esc(x.nama)}</b></td><td>${esc(x.no_hp)}</td><td>${esc(x.tanggal_masuk)}</td><td>${esc(x.status)}</td><td><button class="btn secondary" onclick="editData('penghuni',${x.id})">Edit</button> <button class="btn danger" onclick="deleteData('penghuni',${x.id})">Hapus</button></td></tr>`).join("")||'<tr><td colspan="6" class="empty">Belum ada data</td></tr>'}</tbody></table>`;
+}
+
+function renderSewa(){
+  tableSewa.innerHTML=`<table><thead><tr><th>No</th><th>Penghuni</th><th>Kamar</th><th>Mulai</th><th>Harga</th><th>Status</th><th>Aksi</th></tr></thead><tbody>${state.sewa.map((x,i)=>`<tr><td>${i+1}</td><td>${esc(x.penghuni?.nama||"-")}</td><td>${esc(x.kamar?.nomor_kamar||"-")}</td><td>${esc(x.tanggal_mulai)}</td><td>${rupiah(x.harga_sewa)}</td><td>${esc(x.status)}</td><td><button class="btn secondary" onclick="editData('sewa',${x.id})">Edit</button> <button class="btn danger" onclick="deleteData('sewa',${x.id})">Hapus</button></td></tr>`).join("")||'<tr><td colspan="7" class="empty">Belum ada data</td></tr>'}</tbody></table>`;
+}
+
+function renderPembayaran(){
+  const rows=state.sewa.map(s=>{
+    const paid=state.pembayaran.filter(p=>Number(p.sewa_id)===Number(s.id));
+    const last=paid[0];
+    return {s,last};
+  });
+  tablePembayaran.innerHTML=`<table><thead><tr><th>Penghuni</th><th>Kamar</th><th>Periode</th><th>Tagihan</th><th>Status</th></tr></thead><tbody>${rows.map(({s,last})=>{
+    const paidAmount=last?Number(last.jumlah):0;
+    const status=paidAmount>=Number(s.harga_sewa)?"Lunas":"Belum Lunas";
+    return `<tr><td>${esc(s.penghuni?.nama||"-")}</td><td>${esc(s.kamar?.nomor_kamar||"-")}</td><td>${esc(s.tanggal_mulai||"-")}</td><td>${rupiah(s.harga_sewa)}</td><td><span class="badge ${status==="Lunas"?"green":"yellow"}">${status}</span>${status!=="Lunas"?` <button class="btn" style="padding:6px 9px;font-size:12px" onclick="bayarSewa(${s.id},${s.harga_sewa})">Bayar</button>`:""}</td></tr>`;
+  }).join("")||'<tr><td colspan="5" class="empty">Belum ada data sewa</td></tr>'}</tbody></table>
+  <p class="muted" style="margin-top:12px">Tagihan penerimaan kas otomatis terbentuk dari setiap data sewa. Status menjadi lunas setelah pembayaran dicatat.</p>`;
+}
+
+function renderJurnal(){
+  tableJurnal.innerHTML=`<table><thead><tr><th>Tanggal</th><th>No. Bukti</th><th>Akun Debit</th><th>Akun Kredit</th><th>Nominal</th><th>Keterangan</th></tr></thead><tbody>${state.jurnal.map(x=>`<tr><td>${esc(x.tanggal)}</td><td>${esc(x.nomor_bukti)}</td><td>${esc(x.akun_debit)}</td><td>${esc(x.akun_kredit)}</td><td>${rupiah(x.nominal)}</td><td>${esc(x.keterangan)}</td></tr>`).join("")||'<tr><td colspan="6" class="empty">Belum ada jurnal</td></tr>'}</tbody></table>`;
+}
+
+
+
+async function bayarSewa(sewaId, jumlah){
+  const metode=prompt("Metode pembayaran: Cash / Transfer / QRIS","Transfer");
+  if(!metode) return;
+  const today=new Date().toISOString().slice(0,10);
+  try{
+    const {data,error}=await db.from("pembayaran").insert([{
+      sewa_id:sewaId,tanggal_bayar:today,jumlah:Number(jumlah),
+      metode_pembayaran:metode,periode:today,status:"Lunas",keterangan:"Pembayaran sewa"
+    }]).select().single();
+    if(error) throw error;
+    const {error:jErr}=await db.from("jurnal_penerimaan_kas").insert([{
+      pembayaran_id:data.id,tanggal:today,nomor_bukti:"BKM-"+String(data.id).padStart(5,"0"),
+      akun_debit:metode==="Cash"?"Kas":"Bank",akun_kredit:"Pendapatan Sewa",
+      nominal:Number(jumlah),keterangan:"Penerimaan kas sewa"
+    }]);
+    if(jErr) throw jErr;
+    await loadAll();
+    alert("Pembayaran berhasil dan jurnal penerimaan kas dibuat otomatis.");
+  }catch(err){alert("Gagal memproses pembayaran: "+err.message)}
+}
+
+async function editData(type,id){
+  const item=state[type].find(x=>Number(x.id)===Number(id));
+  if(!item) return;
+  openModal(type,item);
+}
+
+async function deleteData(type,id){
+  if(!confirm("Yakin ingin menghapus data ini?")) return;
+  try{
+    if(type==="kamar"){
+      if(state.sewa.some(x=>Number(x.kamar_id)===Number(id))) throw new Error("Kamar masih digunakan dalam data sewa.");
+      const {error}=await db.from("kamar").delete().eq("id",id); if(error) throw error;
+    } else if(type==="penghuni"){
+      if(state.sewa.some(x=>Number(x.penghuni_id)===Number(id))) throw new Error("Penghuni masih memiliki data sewa.");
+      const {error}=await db.from("penghuni").delete().eq("id",id); if(error) throw error;
+    } else if(type==="sewa"){
+      const pays=state.pembayaran.filter(x=>Number(x.sewa_id)===Number(id));
+      if(pays.length) throw new Error("Sewa sudah memiliki transaksi penerimaan kas. Hapus transaksi terkait terlebih dahulu.");
+      const s=state.sewa.find(x=>Number(x.id)===Number(id));
+      const {error}=await db.from("sewa").delete().eq("id",id); if(error) throw error;
+      if(s) await db.from("kamar").update({status:"Kosong"}).eq("id",s.kamar_id);
+    }
+    await loadAll();
+  }catch(err){alert("Tidak dapat menghapus: "+err.message)}
+}
+
+function openModal(type,item=null){
+  modal.classList.add("show");
+  let title="", form="";
+  if(type==="kamar"){
+    title="Tambah Kamar";
+    form=`<div class="form-grid">
+      <div class="field"><label>Nomor Kamar</label><input name="nomor_kamar" value="${esc(item?.nomor_kamar)}" required></div>
+      <div class="field"><label>Tipe Kamar</label><input name="tipe_kamar" value="${esc(item?.tipe_kamar)}" placeholder="Standard / Premium"></div>
+      <div class="field"><label>Harga Sewa / Bulan</label><input name="harga_sewa" type="number" min="0" value="${item?.harga_sewa||""}" required></div>
+      <div class="field"><label>Status</label><select name="status"><option ${item?.status==="Kosong"?"selected":""}>Kosong</option><option ${item?.status==="Terisi"?"selected":""}>Terisi</option></select></div>
+    </div><div class="form-actions"><button type="button" class="btn secondary" onclick="closeModal()">Batal</button><button class="btn">Simpan</button></div>`;
+  } else if(type==="penghuni"){
+    title="Tambah Penghuni";
+    form=`<div class="form-grid">
+      <div class="field full"><label>Nama Lengkap</label><input name="nama" value="${esc(item?.nama)}" required></div>
+      <div class="field"><label>No. HP</label><input name="no_hp" value="${esc(item?.no_hp)}"></div>
+      <div class="field"><label>Tanggal Masuk</label><input name="tanggal_masuk" type="date" value="${item?.tanggal_masuk||""}"></div>
+      <div class="field full"><label>Alamat</label><textarea name="alamat">${esc(item?.alamat)}</textarea></div>
+    </div><div class="form-actions"><button type="button" class="btn secondary" onclick="closeModal()">Batal</button><button class="btn">Simpan</button></div>`;
+  } else if(type==="sewa"){
+    title="Tambah Sewa";
+    form=`<div class="form-grid">
+      <div class="field full"><label>Penghuni</label><select name="penghuni_id" required>${state.penghuni.map(x=>`<option value="${x.id}" ${Number(item?.penghuni_id)===Number(x.id)?"selected":""}>${esc(x.nama)}</option>`).join("")}</select></div>
+      <div class="field"><label>Kamar</label><select name="kamar_id" required>${state.kamar.filter(x=>String(x.status).toLowerCase()!=="terisi").map(x=>`<option value="${x.id}" ${Number(item?.kamar_id)===Number(x.id)?"selected":""}>${esc(x.nomor_kamar)} - ${rupiah(x.harga_sewa)}</option>`).join("")}</select></div>
+      <div class="field"><label>Harga Sewa</label><input name="harga_sewa" type="number" value="${item?.harga_sewa||""}" required></div>
+      <div class="field"><label>Tanggal Mulai</label><input name="tanggal_mulai" type="date" value="${item?.tanggal_mulai||""}" required></div>
+      <div class="field"><label>Tanggal Selesai</label><input name="tanggal_selesai" type="date" value="${item?.tanggal_selesai||""}"></div>
+    </div><div class="form-actions"><button type="button" class="btn secondary" onclick="closeModal()">Batal</button><button class="btn">Simpan</button></div>`;
+  } else if(type==="pembayaran"){
+    title="Catat Penerimaan Kas";
+    form=`<div class="form-grid">
+      <div class="field full"><label>Sewa / Penghuni</label><select name="sewa_id" required>${state.sewa.map(x=>`<option value="${x.id}">${esc(x.penghuni?.nama||"-")} - Kamar ${esc(x.kamar?.nomor_kamar||"-")}</option>`).join("")}</select></div>
+      <div class="field"><label>Tanggal Bayar</label><input name="tanggal_bayar" type="date" value="${new Date().toISOString().slice(0,10)}" required></div>
+      <div class="field"><label>Jumlah</label><input name="jumlah" type="number" min="1" required></div>
+      <div class="field"><label>Metode Pembayaran</label><select name="metode_pembayaran"><option>Transfer</option><option>Cash</option><option>QRIS</option><option>Debit</option></select></div>
+      <div class="field"><label>Periode</label><input name="periode" placeholder="Oktober 2026"></div>
+      <div class="field full"><label>Keterangan</label><textarea name="keterangan"></textarea></div>
+    </div><div class="form-actions"><button type="button" class="btn secondary" onclick="closeModal()">Batal</button><button class="btn">Simpan & Jurnal</button></div>`;
+  }
+  modalTitle.textContent=(item?"Edit ":"")+title; modalForm.innerHTML=form; modalForm.dataset.itemId=item?.id||""; modalForm.dataset.oldKamarId=item?.kamar_id||""; modalForm.onsubmit=e=>submitForm(e,type);
+}
+
+function closeModal(){modal.classList.remove("show");modalForm.innerHTML=""}
+
+async function submitForm(e,type){
+  e.preventDefault();
+  const f=new FormData(e.target), v=Object.fromEntries(f.entries());
+  const itemId=e.target.dataset.itemId ? Number(e.target.dataset.itemId) : null;
+  const oldKamarId=e.target.dataset.oldKamarId ? Number(e.target.dataset.oldKamarId) : null;
+  try{
+    if(type==="kamar"){
+      const payload={nomor_kamar:v.nomor_kamar,tipe_kamar:v.tipe_kamar,harga_sewa:Number(v.harga_sewa),status:v.status};
+      const {error}=itemId ? await db.from("kamar").update(payload).eq("id",itemId) : await db.from("kamar").insert([payload]);
+      if(error) throw error;
+    }
+    if(type==="penghuni"){
+      const payload={nama:v.nama,no_hp:v.no_hp,alamat:v.alamat,tanggal_masuk:v.tanggal_masuk||null,status:"Aktif"};
+      const {error}=itemId ? await db.from("penghuni").update(payload).eq("id",itemId) : await db.from("penghuni").insert([payload]);
+      if(error) throw error;
+    }
+    if(type==="sewa"){
+      const payload={penghuni_id:Number(v.penghuni_id),kamar_id:Number(v.kamar_id),tanggal_mulai:v.tanggal_mulai,tanggal_selesai:v.tanggal_selesai||null,harga_sewa:Number(v.harga_sewa),status:"Aktif"};
+      const {data,error}=itemId ? await db.from("sewa").update(payload).eq("id",itemId).select().single() : await db.from("sewa").insert([payload]).select().single();
+      if(error) throw error;
+      if(itemId && oldKamarId && oldKamarId!==Number(v.kamar_id)) await db.from("kamar").update({status:"Kosong"}).eq("id",oldKamarId);
+      await db.from("kamar").update({status:"Terisi"}).eq("id",Number(v.kamar_id));
+      if(!itemId){
+        await db.from("pembayaran").insert([{sewa_id:data.id,tanggal_bayar:v.tanggal_mulai,jumlah:Number(v.harga_sewa),metode_pembayaran:"Belum Bayar",periode:v.tanggal_mulai,status:"Belum Lunas",keterangan:"Tagihan sewa otomatis"}]);
+      }
+    }
+    if(type==="pembayaran"){
+      const {data,error}=await db.from("pembayaran").insert([{sewa_id:Number(v.sewa_id),tanggal_bayar:v.tanggal_bayar,jumlah:Number(v.jumlah),metode_pembayaran:v.metode_pembayaran,periode:v.periode,status:"Lunas",keterangan:v.keterangan}]).select().single();
+      if(error) throw error;
+      const nomor="BKM-"+String(data.id).padStart(5,"0");
+      const {error:jErr}=await db.from("jurnal_penerimaan_kas").insert([{
+        pembayaran_id:data.id,tanggal:v.tanggal_bayar,nomor_bukti:nomor,
+        akun_debit:v.metode_pembayaran==="Cash"?"Kas":"Bank",
+        akun_kredit:"Pendapatan Sewa",nominal:Number(v.jumlah),
+        keterangan:"Penerimaan sewa "+(v.periode||"")
+      }]);
+      if(jErr) throw jErr;
+    }
+    closeModal(); await loadAll(); alert("Data berhasil disimpan.");
+  }catch(err){
+    console.error(err);
+    alert("Gagal menyimpan: "+(err.message||err));
+  }
+}
+
+loadAll();
+</script>
+</body>
+</html>
